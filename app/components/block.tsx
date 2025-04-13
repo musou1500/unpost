@@ -1,6 +1,7 @@
 import { Editor } from "@tinymce/tinymce-react";
 import { useCallback, useEffect, useRef } from "react";
 import type { Block, Position, Size } from "~/board";
+import { useClientOnly } from "./client-only";
 
 export interface BlockProps {
   blockId: string;
@@ -27,6 +28,7 @@ export const BlockText = ({
     isResize: boolean;
     offset: { x: number; y: number };
   } | null>(null);
+  const isClient = useClientOnly();
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -129,44 +131,46 @@ export const BlockText = ({
       // https://bugzilla.mozilla.org/show_bug.cgi?id=505521
       onPointerDown={onPointerDown}
     >
-      <Editor
-        licenseKey="gpl"
-        tinymceScriptSrc="/tinymce/tinymce.min.js"
-        inline
-        init={{
-          plugins: [
-            "advlist",
-            "autolink",
-            "lists",
-            "link",
-            "image",
-            "charmap",
-            "anchor",
-            "searchreplace",
-            "visualblocks",
-            "code",
-            "fullscreen",
-            "insertdatetime",
-            "media",
-            "table",
-            "preview",
-            "wordcount",
-          ],
-          menubar: false,
-          toolbar:
-            "undo redo | fontfamily fontsize | link |" +
-            "bold italic forecolor | alignleft aligncenter " +
-            "alignright alignjustify | bullist numlist outdent indent | " +
-            "removeformat",
-        }}
-        onEditorChange={(content) => {
-          onChange({
-            content,
-            blockId,
-          });
-        }}
-        value={block.text}
-      />
+      {isClient && (
+        <Editor
+          licenseKey="gpl"
+          tinymceScriptSrc="/tinymce/tinymce.min.js"
+          inline
+          init={{
+            plugins: [
+              "advlist",
+              "autolink",
+              "lists",
+              "link",
+              "image",
+              "charmap",
+              "anchor",
+              "searchreplace",
+              "visualblocks",
+              "code",
+              "fullscreen",
+              "insertdatetime",
+              "media",
+              "table",
+              "preview",
+              "wordcount",
+            ],
+            menubar: false,
+            toolbar:
+              "undo redo | fontfamily fontsize | link |" +
+              "bold italic forecolor | alignleft aligncenter " +
+              "alignright alignjustify | bullist numlist outdent indent | " +
+              "removeformat",
+          }}
+          onEditorChange={(content) => {
+            onChange({
+              content,
+              blockId,
+            });
+          }}
+          value={block.text}
+        />
+      )}
 
       <div className="block-text__resizer"></div>
     </div>

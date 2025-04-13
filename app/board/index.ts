@@ -26,7 +26,7 @@ export interface State {
   blockIds: string[];
 }
 
-type Actions =
+export type Actions =
   | {
       type: "addtext";
       block: {

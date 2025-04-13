@@ -1,4 +1,4 @@
-import { parseIntStr } from "~/.server/validation";
+import { parseIntStr, parseStr } from "~/.server/validation";
 import type { Route } from "./+types/route";
 import { useNavigate } from "react-router";
 import { useReducer } from "react";
@@ -6,6 +6,8 @@ import * as s from "~/board";
 
 import "./style.css";
 import { BlockText } from "~/components/block";
+import { db } from "~/.server/db";
+import { useClientOnly } from "~/components/client-only";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -16,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
 
 const dows = ["日", "月", "火", "水", "木", "金", "土"];
 
-export const loader = ({ params }: Route.LoaderArgs) => {
+export const loader = async ({ params }: Route.LoaderArgs) => {
   const y = parseIntStr(params.y, {});
   const m = parseIntStr(params.m, {}) - 1;
   const d = parseIntStr(params.d, {});
@@ -24,19 +26,51 @@ export const loader = ({ params }: Route.LoaderArgs) => {
     throw new Response("Invalid date", { status: 400 });
   }
 
+  const actions = await db.getActions(`${y}.${m + 1}.${d}`);
+  const initialState = actions.reduce(
+    (acc, action) => s.reducer(acc, action),
+    s.initialState
+  );
+
   return {
     year: y,
     month: m,
     day: d,
+    initialState,
   };
 };
 
+export const action = async ({ params, request }: Route.ActionArgs) => {
+  const fd = await request.formData();
+  const action = JSON.parse(parseStr(fd.get("action"), {}));
+  await db.addAction(
+    `${params.y}.${params.m}.${params.d}`,
+    action as s.Actions
+  );
+};
+
 export default function Home({
-  loaderData: { year, month, day },
+  loaderData: { year, month, day, initialState },
 }: Route.ComponentProps) {
   const now = new Date(year, month, day);
   const navigate = useNavigate();
-  const [state, dispatch] = useReducer(s.reducer, s.initialState);
+  const [state, rawDispatch] = useReducer(s.reducer, initialState);
+  console.log({ state, initialState });
+  const dispatch = (action: s.Actions) => {
+    console.log("dispatch", action);
+    rawDispatch(action);
+    fetch(`/api/boards/${year}/${month + 1}/${day}`, {
+      body: JSON.stringify({ action }),
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }).catch((e) => {
+      console.error(e);
+      alert("Failed to save action");
+    });
+  };
+
   return (
     <div
       className="p-index"
