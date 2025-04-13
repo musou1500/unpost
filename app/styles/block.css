@@ -1,0 +1,79 @@
+.today-block {
+  display: flex;
+  gap: 8px;
+}
+
+.today-block__block {
+  min-width: 100px;
+  border-radius: 8px;
+  text-align: center;
+  padding-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  border: none;
+  border-top: 8px solid #91a4a5;
+  transition: background-color 0.3s ease;
+}
+
+.today-block__month-number,
+.today-block__date-number,
+.today-block__day-name {
+  font-size: 64px;
+  text-align: center;
+}
+
+.today-block__year {
+  padding-inline: 16px;
+}
+
+.today-block__today {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 0;
+}
+
+.today-block__today-icon {
+  font-size: 48px;
+}
+
+.today-block__today:hover {
+  background-color: #f9f9f9;
+}
+
+.block-text {
+  position: absolute;
+  background-color: transparent;
+  border: solid 2px var(--color-block-inactive);
+  outline: none;
+}
+
+.block-text:focus-within {
+  border-color: var(--color-block-active);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.block-text__resizer {
+  display: block;
+  width: 10px;
+  height: 10px;
+  background-color: var(--color-block-inactive);
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+
+.block-text:focus-within .block-text__resizer {
+  background-color: var(--color-block-active);
+}
+
+.block-text__close {
+  background: transparent;
+  border: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0;
+}

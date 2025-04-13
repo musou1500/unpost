@@ -1,0 +1,21 @@
+.p-index {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.p-index__today-block {
+  position: fixed;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  justify-items: center;
+  z-index: calc(infinity);
+}
+
+.p-index__layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
