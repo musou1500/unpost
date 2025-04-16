@@ -8,10 +8,21 @@ export interface Size {
   height: number;
 }
 
-export type Block = {
+type BlockBase = {
+  id: string;
+};
+
+export type BlockText = BlockBase & {
   type: "text";
   text: string;
 };
+
+export type BlockImage = BlockBase & {
+  type: "image";
+  url: string;
+};
+
+export type Block = BlockText | BlockImage;
 
 export interface State {
   blocks: Map<
@@ -28,11 +39,8 @@ export interface State {
 
 export type Actions =
   | {
-      type: "addtext";
-      block: {
-        type: "text";
-        text: string;
-      };
+      type: "add-block";
+      block: Block;
       position: {
         x: number;
         y: number;
@@ -119,10 +127,9 @@ export const reducer = (state: State, action: Actions): State => {
         blocks,
       };
     }
-    case "addtext": {
-      const blockId = crypto.randomUUID();
+    case "add-block": {
       const blocks = new Map(state.blocks);
-      blocks.set(blockId, {
+      blocks.set(action.block.id, {
         block: action.block,
         position: action.position,
         size: {
@@ -133,7 +140,7 @@ export const reducer = (state: State, action: Actions): State => {
       return {
         ...state,
         blocks,
-        blockIds: [...state.blockIds, blockId],
+        blockIds: [...state.blockIds, action.block.id],
       };
     }
     default:

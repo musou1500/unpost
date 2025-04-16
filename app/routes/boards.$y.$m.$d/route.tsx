@@ -1,13 +1,12 @@
 import { parseIntStr, parseStr } from "~/.server/validation";
 import type { Route } from "./+types/route";
-import { useNavigate } from "react-router";
+import { useFetcher, useLocation, useNavigate } from "react-router";
 import { useReducer } from "react";
 import * as s from "~/board";
+import { Block } from "~/components/block";
+import { db } from "~/.server/db";
 
 import "./style.css";
-import { BlockText } from "~/components/block";
-import { db } from "~/.server/db";
-import { useClientOnly } from "~/components/client-only";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -49,15 +48,15 @@ export const action = async ({ params, request }: Route.ActionArgs) => {
   );
 };
 
-export default function Home({
+function Home_({
   loaderData: { year, month, day, initialState },
 }: Route.ComponentProps) {
   const now = new Date(year, month, day);
   const navigate = useNavigate();
   const [state, rawDispatch] = useReducer(s.reducer, initialState);
-  console.log({ state, initialState });
+  const uploadFetcher = useFetcher();
+
   const dispatch = (action: s.Actions) => {
-    console.log("dispatch", action);
     rawDispatch(action);
     fetch(`/api/boards/${year}/${month + 1}/${day}`, {
       body: JSON.stringify({ action }),
@@ -83,8 +82,9 @@ export default function Home({
         }
         const rect = e.currentTarget.getBoundingClientRect();
         dispatch({
-          type: "addtext",
+          type: "add-block",
           block: {
+            id: crypto.randomUUID(),
             type: "text",
             text: "* test",
           },
@@ -96,45 +96,61 @@ export default function Home({
           },
         });
       }}
+      onDragOver={(e) => {
+        e.preventDefault();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        if (!(e.dataTransfer instanceof DataTransfer)) return;
+        if (e.dataTransfer.files.length < 1) {
+          return;
+        }
+
+        const file = e.dataTransfer.files[0];
+        const fd = new FormData();
+        fd.append("file", file);
+        uploadFetcher
+          .submit(fd, {
+            method: "post",
+            encType: "multipart/form-data",
+            action: `/api/uploads`,
+          })
+          .catch((e) => {
+            console.error(e);
+            alert("Failed to upload file");
+          })
+          .then(() => {
+            if (!uploadFetcher.data) return;
+            const url: string = uploadFetcher.data.url;
+            console.log(url);
+            dispatch({
+              type: "add-block",
+              block: {
+                id: crypto.randomUUID(),
+                type: "image",
+                url,
+              },
+              width: 100,
+              height: 100,
+              position: {
+                x: e.clientX,
+                y: e.clientY,
+              },
+            });
+          });
+      }}
     >
       <div className="p-index__layer">
         {Array.from(state.blockIds).map((blockId) => {
           const block = state.blocks.get(blockId);
           if (!block) return null;
           return (
-            <BlockText
+            <Block
               key={blockId}
-              blockId={blockId}
               block={block.block}
               size={block.size}
               position={block.position}
-              onChange={(e) => {
-                dispatch({
-                  type: "set-text",
-                  text: e.content,
-                  blockId: e.blockId,
-                });
-              }}
-              onRemove={(e) => {
-                dispatch({
-                  type: "remove",
-                  blockId: e.blockId,
-                });
-              }}
-              onMove={(e) => {
-                dispatch({
-                  type: "move",
-                  blockId: e.blockId,
-                  position: e.position,
-                });
-              }}
-              onResize={(e) => {
-                dispatch({
-                  type: "resize",
-                  blockId: e.blockId,
-                  size: e.size,
-                });
-              }}
+              onAction={(action) => dispatch(action)}
             />
           );
         })}
@@ -179,4 +195,9 @@ export default function Home({
       </div>
     </div>
   );
+}
+
+export default function Home(props: Route.ComponentProps) {
+  const { pathname } = useLocation();
+  return <Home_ {...props} key={pathname} />;
 }

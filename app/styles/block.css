@@ -42,19 +42,19 @@
   background-color: #f9f9f9;
 }
 
-.block-text {
+.block {
   position: absolute;
   background-color: transparent;
   border: solid 2px var(--color-block-inactive);
   outline: none;
 }
 
-.block-text:focus-within {
+.block:focus-within {
   border-color: var(--color-block-active);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.block-text__resizer {
+.block__resizer {
   display: block;
   width: 10px;
   height: 10px;
@@ -65,15 +65,21 @@
   cursor: se-resize;
 }
 
-.block-text:focus-within .block-text__resizer {
+.block:focus-within .block__resizer {
   background-color: var(--color-block-active);
 }
 
-.block-text__close {
+.block__close {
   background: transparent;
   border: none;
   position: absolute;
   top: 0;
   right: 0;
   padding: 0;
+}
+
+.block-image__image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
 }

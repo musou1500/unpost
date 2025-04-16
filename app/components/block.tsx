@@ -1,34 +1,37 @@
 import { Editor } from "@tinymce/tinymce-react";
-import { useCallback, useEffect, useRef } from "react";
-import type { Block, Position, Size } from "~/board";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  type JSX,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import type * as board from "~/board";
 import { useClientOnly } from "./client-only";
 
-export interface BlockProps {
-  blockId: string;
-  block: Block;
-  position: Position;
-  size: Size;
-  onChange: (e: { content: string; blockId: string }) => void;
-  onRemove: (e: { blockId: string }) => void;
-  onMove: (e: { blockId: string; position: Position }) => void;
-  onResize: (e: { blockId: string; size: Size }) => void;
-}
+type BlockComponentProps<T extends board.Block> = {
+  block: T;
+  size: board.Size;
+  position: board.Position;
+  onAction: (e: board.Actions) => void;
+};
 
-export const BlockText = ({
-  blockId,
+const BlockRoot = ({
   block,
-  size,
   position,
-  onChange,
-  onRemove,
-  onMove,
-  onResize,
-}: BlockProps) => {
+  size,
+  onAction,
+  children,
+  className,
+}: BlockComponentProps<board.Block> & {
+  children: ReactNode;
+  className?: string;
+}) => {
   const dragStateRef = useRef<{
     isResize: boolean;
     offset: { x: number; y: number };
   } | null>(null);
-  const isClient = useClientOnly();
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -36,8 +39,9 @@ export const BlockText = ({
       switch (e.key) {
         case "Delete":
         case "Backspace":
-          onRemove({
-            blockId,
+          onAction({
+            type: "remove",
+            blockId: block.id,
           });
           break;
         case "Escape":
@@ -45,7 +49,7 @@ export const BlockText = ({
           break;
       }
     },
-    [blockId, onRemove]
+    [block, onAction]
   );
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
@@ -79,19 +83,20 @@ export const BlockText = ({
     const onPointerMove = (e: PointerEvent) => {
       if (dragStateRef.current === null) return;
       if (dragStateRef.current.isResize) {
-        console.log(position.x, position.y, size.width, size.height);
         const width = e.clientX - position.x;
         const height = e.clientY - position.y;
-        onResize({
-          blockId,
+        onAction({
+          type: "resize",
+          blockId: block.id,
           size: {
             width,
             height,
           },
         });
       } else {
-        onMove({
-          blockId,
+        onAction({
+          type: "move",
+          blockId: block.id,
           position: {
             x: e.clientX - dragStateRef.current.offset.x,
             y: e.clientY - dragStateRef.current.offset.y,
@@ -107,20 +112,12 @@ export const BlockText = ({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [
-    blockId,
-    onMove,
-    onResize,
-    position.x,
-    position.y,
-    size.width,
-    size.height,
-  ]);
+  }, [block, onAction, position.x, position.y, size.width, size.height]);
 
   return (
     <div
       tabIndex={1}
-      className="block-text"
+      className={`block ${className ?? ""}`}
       style={{
         left: position.x,
         top: position.y,
@@ -131,7 +128,45 @@ export const BlockText = ({
       // https://bugzilla.mozilla.org/show_bug.cgi?id=505521
       onPointerDown={onPointerDown}
     >
-      {isClient && (
+      {children}
+
+      <div className="block__resizer"></div>
+    </div>
+  );
+};
+
+const ImageBlock = ({
+  block,
+  size,
+  position,
+  onAction,
+}: BlockComponentProps<board.BlockImage>) => {
+  return (
+    <BlockRoot
+      block={block}
+      size={size}
+      position={position}
+      onAction={onAction}
+      className="block-image"
+    >
+      <img
+        src={block.url}
+        alt=""
+        className="block-image__image"
+        style={{
+          width: size.width,
+          height: size.height,
+        }}
+        draggable={false}
+      />
+    </BlockRoot>
+  );
+};
+const TextBlock = (props: BlockComponentProps<board.BlockText>) => {
+  const isClient = useClientOnly();
+  return (
+    <BlockRoot {...props} className="block-text">
+      {isClient ? (
         <Editor
           licenseKey="gpl"
           tinymceScriptSrc="/tinymce/tinymce.min.js"
@@ -162,17 +197,30 @@ export const BlockText = ({
               "alignright alignjustify | bullist numlist outdent indent | " +
               "removeformat",
           }}
-          onEditorChange={(content) => {
-            onChange({
-              content,
-              blockId,
+          onEditorChange={(text) => {
+            props.onAction({
+              type: "set-text",
+              text,
+              blockId: props.block.id,
             });
           }}
-          value={block.text}
+          value={props.block.text}
         />
-      )}
-
-      <div className="block-text__resizer"></div>
-    </div>
+      ) : null}
+    </BlockRoot>
   );
+};
+
+export const Block = ({
+  block,
+  ...props
+}: BlockComponentProps<board.Block>): ReactElement => {
+  switch (block.type) {
+    case "text":
+      return <TextBlock {...props} block={block} />;
+    case "image":
+      return <ImageBlock {...props} block={block} />;
+    default:
+      throw new Error(`Unknown block type`);
+  }
 };
