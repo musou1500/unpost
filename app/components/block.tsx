@@ -2,9 +2,7 @@ import { Editor } from "@tinymce/tinymce-react";
 import React, {
   useCallback,
   useEffect,
-  useRef,
   useState,
-  type JSX,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -24,10 +22,8 @@ const BlockRoot = ({
   size,
   onAction,
   children,
-  className,
 }: BlockComponentProps<board.Block> & {
   children: ReactNode;
-  className?: string;
 }) => {
   const [dragState, setDragState] = useState<{
     isResize: boolean;
@@ -140,7 +136,7 @@ const BlockRoot = ({
     <div className="block-root">
       <div
         tabIndex={1}
-        className={`block ${className ?? ""}`}
+        className={`block`}
         style={{
           left: position.x,
           top: position.y,
@@ -192,66 +188,69 @@ const ImageBlock = ({
       size={size}
       position={position}
       onAction={onAction}
-      className="block-image"
     >
-      <img
-        src={block.url}
-        alt=""
-        className="block-image__image"
-        style={{
-          width: size.width,
-          height: size.height,
-        }}
-        draggable={false}
-      />
+      <div className="block-image">
+        <img
+          src={block.url}
+          alt=""
+          className="block-image__image"
+          style={{
+            width: size.width,
+            height: size.height,
+          }}
+          draggable={false}
+        />
+      </div>
     </BlockRoot>
   );
 };
 const TextBlock = (props: BlockComponentProps<board.BlockText>) => {
   const isClient = useClientOnly();
   return (
-    <BlockRoot {...props} className="block-text">
-      {isClient ? (
-        <Editor
-          licenseKey="gpl"
-          tinymceScriptSrc="/tinymce/tinymce.min.js"
-          inline
-          init={{
-            plugins: [
-              "advlist",
-              "autolink",
-              "lists",
-              "link",
-              "image",
-              "charmap",
-              "anchor",
-              "searchreplace",
-              "visualblocks",
-              "code",
-              "fullscreen",
-              "insertdatetime",
-              "media",
-              "table",
-              "preview",
-              "wordcount",
-            ],
-            menubar: false,
-            toolbar:
-              "undo redo | fontfamily fontsize | link |" +
-              "bold italic forecolor | alignleft aligncenter " +
-              "alignright alignjustify | bullist numlist outdent indent | " +
-              "removeformat",
-          }}
-          onEditorChange={(text) => {
-            props.onAction({
-              type: "set-text",
-              text,
-              blockId: props.block.id,
-            });
-          }}
-          value={props.block.text}
-        />
-      ) : null}
+    <BlockRoot {...props}>
+      <div className="block-text">
+        {isClient ? (
+          <Editor
+            licenseKey="gpl"
+            tinymceScriptSrc="/tinymce/tinymce.min.js"
+            inline
+            init={{
+              plugins: [
+                "advlist",
+                "autolink",
+                "lists",
+                "link",
+                "image",
+                "charmap",
+                "anchor",
+                "searchreplace",
+                "visualblocks",
+                "code",
+                "fullscreen",
+                "insertdatetime",
+                "media",
+                "table",
+                "preview",
+                "wordcount",
+              ],
+              menubar: false,
+              toolbar:
+                "undo redo | fontfamily fontsize | link |" +
+                "bold italic forecolor | alignleft aligncenter " +
+                "alignright alignjustify | bullist numlist outdent indent | " +
+                "removeformat",
+            }}
+            onEditorChange={(text) => {
+              props.onAction({
+                type: "set-text",
+                text,
+                blockId: props.block.id,
+              });
+            }}
+            value={props.block.text}
+          />
+        ) : null}
+      </div>
     </BlockRoot>
   );
 };
