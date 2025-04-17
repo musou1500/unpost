@@ -42,6 +42,18 @@ const BlockRoot = ({
             blockId: block.id,
           });
           break;
+        case "ArrowUp":
+          onAction({
+            type: "bring-to-front",
+            blockId: block.id,
+          });
+          break;
+        case "ArrowDown":
+          onAction({
+            type: "bring-to-back",
+            blockId: block.id,
+          });
+          break;
         case "Escape":
           e.currentTarget.blur();
           break;

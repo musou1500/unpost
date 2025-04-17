@@ -72,6 +72,14 @@ export type Actions =
         width: number;
         height: number;
       };
+    }
+  | {
+      type: "bring-to-front";
+      blockId: string;
+    }
+  | {
+      type: "bring-to-back";
+      blockId: string;
     };
 
 export const reducer = (state: State, action: Actions): State => {
@@ -125,6 +133,25 @@ export const reducer = (state: State, action: Actions): State => {
       return {
         ...state,
         blocks,
+      };
+    }
+    case "bring-to-front": {
+      if (!state.blocks.has(action.blockId)) return state;
+      return {
+        ...state,
+        blockIds: state.blockIds
+          .filter((id) => id !== action.blockId)
+          .concat(action.blockId),
+      };
+    }
+    case "bring-to-back": {
+      if (!state.blocks.has(action.blockId)) return state;
+      return {
+        ...state,
+        blockIds: [
+          action.blockId,
+          ...state.blockIds.filter((id) => id !== action.blockId),
+        ],
       };
     }
     case "add-block": {
