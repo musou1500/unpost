@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type JSX,
   type ReactElement,
   type ReactNode,
@@ -28,9 +29,10 @@ const BlockRoot = ({
   children: ReactNode;
   className?: string;
 }) => {
-  const dragStateRef = useRef<{
+  const [dragState, setDragState] = useState<{
     isResize: boolean;
     offset: { x: number; y: number };
+    position: { x: number; y: number };
   } | null>(null);
 
   const onKeyDown = useCallback(
@@ -64,33 +66,31 @@ const BlockRoot = ({
         e.clientX < rect.left + threshold ||
         e.clientX > rect.right - threshold);
     if (isResize || isMove) {
-      dragStateRef.current = {
+      setDragState({
         isResize,
         offset: {
           // position relative to the left top corner of block
           x: e.clientX - rect.x,
           y: e.clientY - rect.y,
         },
-      };
+        position: {
+          x: e.clientX,
+          y: e.clientY,
+        },
+      });
     }
   }, []);
 
   useEffect(() => {
     const onPointerUp = () => {
-      dragStateRef.current = null;
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      if (dragStateRef.current === null) return;
-      if (dragStateRef.current.isResize) {
-        const width = e.clientX - position.x;
-        const height = e.clientY - position.y;
+      if (dragState === null) return;
+      if (dragState.isResize) {
         onAction({
           type: "resize",
           blockId: block.id,
           size: {
-            width,
-            height,
+            width: dragState.position.x - position.x,
+            height: dragState.position.y - position.y,
           },
         });
       } else {
@@ -98,11 +98,25 @@ const BlockRoot = ({
           type: "move",
           blockId: block.id,
           position: {
-            x: e.clientX - dragStateRef.current.offset.x,
-            y: e.clientY - dragStateRef.current.offset.y,
+            x: dragState.position.x - dragState.offset.x,
+            y: dragState.position.y - dragState.offset.y,
           },
         });
       }
+      setDragState(null);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      setDragState((prev) => {
+        if (prev === null) return null;
+        return {
+          ...prev,
+          position: {
+            x: e.clientX,
+            y: e.clientY,
+          },
+        };
+      });
     };
 
     window.addEventListener("pointermove", onPointerMove);
@@ -112,25 +126,56 @@ const BlockRoot = ({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [block, onAction, position.x, position.y, size.width, size.height]);
+  }, [
+    block,
+    onAction,
+    position.x,
+    position.y,
+    size.width,
+    size.height,
+    dragState,
+  ]);
 
   return (
-    <div
-      tabIndex={1}
-      className={`block ${className ?? ""}`}
-      style={{
-        left: position.x,
-        top: position.y,
-        width: size.width,
-        height: size.height,
-      }}
-      onKeyDown={onKeyDown}
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=505521
-      onPointerDown={onPointerDown}
-    >
-      {children}
+    <div className="block-root">
+      <div
+        tabIndex={1}
+        className={`block ${className ?? ""}`}
+        style={{
+          left: position.x,
+          top: position.y,
+          width: size.width,
+          height: size.height,
+        }}
+        onKeyDown={onKeyDown}
+        // https://bugzilla.mozilla.org/show_bug.cgi?id=505521
+        onPointerDown={onPointerDown}
+      >
+        {children}
 
-      <div className="block__resizer"></div>
+        <div className="block__resizer"></div>
+      </div>
+
+      {dragState && (
+        <div
+          className="block__dragging"
+          style={
+            dragState.isResize
+              ? {
+                  left: position.x,
+                  top: position.y,
+                  width: dragState.position.x - position.x,
+                  height: dragState.position.y - position.y,
+                }
+              : {
+                  left: dragState.position.x - dragState.offset.x,
+                  top: dragState.position.y - dragState.offset.y,
+                  width: size.width,
+                  height: size.height,
+                }
+          }
+        ></div>
+      )}
     </div>
   );
 };
