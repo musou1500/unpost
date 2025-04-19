@@ -16,6 +16,21 @@ type BlockComponentProps<T extends board.Block> = {
   onAction: (e: board.Actions) => void;
 };
 
+// convert viewport position to block position
+const getBlockPosition = (
+  offsetParent: HTMLElement,
+  viewportPosition: {
+    x: number;
+    y: number;
+  }
+) => {
+  const rect = offsetParent.getBoundingClientRect();
+  return {
+    x: viewportPosition.x - rect.x,
+    y: viewportPosition.y - rect.y,
+  };
+};
+
 const BlockRoot = ({
   block,
   position,
@@ -27,8 +42,14 @@ const BlockRoot = ({
 }) => {
   const [dragState, setDragState] = useState<{
     isResize: boolean;
+    // position relative to the left top corner of block
     offset: { x: number; y: number };
+
+    // position
     position: { x: number; y: number };
+
+    // viewport position of offsetParent
+    offsetParent: HTMLElement;
   } | null>(null);
 
   const onKeyDown = useCallback(
@@ -62,7 +83,7 @@ const BlockRoot = ({
     [block, onAction]
   );
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const threshold = 10;
     const isResize =
@@ -73,18 +94,21 @@ const BlockRoot = ({
         e.clientY > rect.bottom - threshold ||
         e.clientX < rect.left + threshold ||
         e.clientX > rect.right - threshold);
-    if (isResize || isMove) {
+    if (
+      (isResize || isMove) &&
+      e.currentTarget.offsetParent instanceof HTMLElement
+    ) {
       setDragState({
         isResize,
+        offsetParent: e.currentTarget.offsetParent,
         offset: {
-          // position relative to the left top corner of block
           x: e.clientX - rect.x,
           y: e.clientY - rect.y,
         },
-        position: {
+        position: getBlockPosition(e.currentTarget.offsetParent, {
           x: e.clientX,
           y: e.clientY,
-        },
+        }),
       });
     }
   }, []);
@@ -119,10 +143,10 @@ const BlockRoot = ({
         if (prev === null) return null;
         return {
           ...prev,
-          position: {
+          position: getBlockPosition(prev.offsetParent, {
             x: e.clientX,
             y: e.clientY,
-          },
+          }),
         };
       });
     };

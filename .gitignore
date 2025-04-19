@@ -9,3 +9,5 @@
 /data
 
 /.envrc
+
+/prisma/dev.db

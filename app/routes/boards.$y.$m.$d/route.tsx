@@ -1,12 +1,13 @@
 import { parseIntStr, parseStr } from "~/.server/validation";
 import type { Route } from "./+types/route";
 import { useFetcher, useLocation, useNavigate } from "react-router";
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 import * as s from "~/board";
 import { Block } from "~/components/block";
-import { db } from "~/.server/db";
+import { actionStore } from "~/.server";
 
 import "./style.css";
+import { auth } from "~/.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -15,9 +16,9 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-const dows = ["日", "月", "火", "水", "木", "金", "土"];
+export const loader = async ({ params, request }: Route.LoaderArgs) => {
+  await auth.authenticate(request);
 
-export const loader = async ({ params }: Route.LoaderArgs) => {
   const y = parseIntStr(params.y, {});
   const m = parseIntStr(params.m, {}) - 1;
   const d = parseIntStr(params.d, {});
@@ -25,7 +26,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     throw new Response("Invalid date", { status: 400 });
   }
 
-  const actions = await db.getActions(`${y}.${m + 1}.${d}`);
+  const actions = await actionStore.getActions(`${y}.${m + 1}.${d}`);
   const initialState = actions.reduce(
     (acc, action) => s.reducer(acc, action),
     s.initialState
@@ -40,9 +41,11 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
 };
 
 export const action = async ({ params, request }: Route.ActionArgs) => {
+  await auth.authenticate(request);
+
   const fd = await request.formData();
   const action = JSON.parse(parseStr(fd.get("action"), {}));
-  await db.addAction(
+  await actionStore.addAction(
     `${params.y}.${params.m}.${params.d}`,
     action as s.Actions
   );
@@ -51,10 +54,10 @@ export const action = async ({ params, request }: Route.ActionArgs) => {
 function Home_({
   loaderData: { year, month, day, initialState },
 }: Route.ComponentProps) {
-  const now = new Date(year, month, day);
   const navigate = useNavigate();
   const [state, rawDispatch] = useReducer(s.reducer, initialState);
   const uploadFetcher = useFetcher();
+  const [mode, setMode] = useState<"mouse" | "text">("mouse");
 
   const dispatch = (action: s.Actions) => {
     rawDispatch(action);
@@ -76,7 +79,8 @@ function Home_({
       onClick={(e) => {
         if (
           !(e.target instanceof HTMLElement) ||
-          ![...e.target.classList].includes("p-index__layer")
+          ![...e.target.classList].includes("p-index__board-inner") ||
+          mode !== "text"
         ) {
           return;
         }
@@ -86,7 +90,7 @@ function Home_({
           block: {
             id: crypto.randomUUID(),
             type: "text",
-            text: "* test",
+            text: "",
           },
           width: 100,
           height: 100,
@@ -116,7 +120,6 @@ function Home_({
             action: `/api/uploads`,
           })
           .catch((e) => {
-            console.error(e);
             alert("Failed to upload file");
           })
           .then(() => {
@@ -140,57 +143,91 @@ function Home_({
           });
       }}
     >
-      <div className="p-index__layer">
-        {Array.from(state.blockIds).map((blockId) => {
-          const block = state.blocks.get(blockId);
-          if (!block) return null;
-          return (
-            <Block
-              key={blockId}
-              block={block.block}
-              size={block.size}
-              position={block.position}
-              onAction={(action) => dispatch(action)}
-            />
-          );
-        })}
-      </div>
-
-      <div className="p-index__today-block">
-        <div className="today-block">
-          <div className="today-block__year today-block__block">
-            <div className="today-block__month-number">{now.getFullYear()}</div>
-            <div className="today-block__unit">年</div>
-          </div>
-
-          <div className="today-block__month today-block__block">
-            <div className="today-block__month-number">
-              {now.getMonth() + 1}
-            </div>
-            <div className="today-block__unit">月</div>
-          </div>
-          <div className="today-block__date today-block__block">
-            <div className="today-block__date-number">{now.getDate()}</div>
-            <div className="today-block__unit">日</div>
-          </div>
-          <div className="today-block__day today-block__block">
-            <div className="today-block__day-name">{dows[now.getDay()]}</div>
-            <div className="today-block__unit">曜日</div>
-          </div>
+      <div className="p-index__header">
+        <div className="p-index__pager">
           <button
-            className="today-block__today today-block__block"
+            className="p-index__prev material-icons-outlined"
             onClick={() => {
-              const now = new Date();
-              const y = now.getFullYear();
-              const m = now.getMonth() + 1;
-              const d = now.getDate();
-              navigate(`/boards/${y}/${m}/${d}`);
+              const date = new Date(year, month, day);
+              date.setDate(date.getDate() - 1);
+              navigate(
+                `/boards/${date.getFullYear()}/${
+                  date.getMonth() + 1
+                }/${date.getDate()}`
+              );
             }}
           >
-            <span className="material-icons today-block__today-icon">
-              calendar_today
-            </span>
+            chevron_left
           </button>
+          <input
+            type="date"
+            className="p-index__date"
+            value={`${year}-${String(month + 1).padStart(2, "0")}-${String(
+              day
+            ).padStart(2, "0")}`}
+            onChange={(e) => {
+              const date = new Date(e.target.value);
+              navigate(
+                `/boards/${date.getFullYear()}/${
+                  date.getMonth() + 1
+                }/${date.getDate()}`
+              );
+            }}
+          />
+          <button
+            className="p-index__next material-icons-outlined"
+            onClick={() => {
+              const date = new Date(year, month, day);
+              date.setDate(date.getDate() + 1);
+              navigate(
+                `/boards/${date.getFullYear()}/${
+                  date.getMonth() + 1
+                }/${date.getDate()}`
+              );
+            }}
+          >
+            chevron_right
+          </button>
+        </div>
+
+        <div className="p-index__modes">
+          <button
+            className={`p-index__mode material-icons ${
+              mode === "mouse" ? "p-index__mode--active" : ""
+            }`}
+            onClick={() => {
+              setMode("mouse");
+            }}
+          >
+            mouse
+          </button>
+          <button
+            className={`p-index__mode material-icons ${
+              mode === "text" ? "p-index__mode--active" : ""
+            }`}
+            onClick={() => {
+              setMode("text");
+            }}
+          >
+            title
+          </button>
+        </div>
+      </div>
+      <div className="p-index__board">
+        <div className="p-index__board-inner">
+          {Array.from(state.blockIds).map((blockId) => {
+            const block = state.blocks.get(blockId);
+            if (!block) return null;
+            return (
+              <Block
+                key={blockId}
+                block={block.block}
+                size={block.size}
+                position={block.position}
+                onAction={(action) => dispatch(action)}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

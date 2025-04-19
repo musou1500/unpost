@@ -1,36 +1,44 @@
-import * as fsp from "node:fs/promises";
-import * as path from "node:path";
-import * as s from "~/board";
+import { Prisma, PrismaClient } from "@prisma/client";
 
-export class DB {
-  constructor(private dataDir: string) {}
+export const selectUser = Prisma.validator<Prisma.UserSelect>()({
+  id: true,
+  name: true,
+});
 
-  async addAction(boardId: string, action: s.Actions): Promise<void> {
-    const filePath = this.getDataFilePath(boardId);
-    const data = JSON.stringify(action) + "\n";
-    await fsp.appendFile(filePath, data);
-  }
+export type User = Prisma.UserGetPayload<{ select: typeof selectUser }>;
 
-  async getActions(boardId: string): Promise<s.Actions[]> {
-    const filePath = this.getDataFilePath(boardId);
-    try {
-      const data = await fsp.readFile(filePath, "utf-8");
-      return data
-        .trim()
-        .split("\n")
-        .filter((line) => line.length > 0)
-        .map((line) => JSON.parse(line));
-    } catch (e) {
-      if (e instanceof Error && "code" in e && e.code === "ENOENT") {
-        return [];
-      }
-      throw e;
-    }
-  }
+export const findUserById = async (
+  prisma: PrismaClient,
+  id: string
+): Promise<User | null> => {
+  return prisma.user.findUnique({
+    select: selectUser,
+    where: { id },
+  });
+};
 
-  private getDataFilePath(boardId: string): string {
-    return path.join(this.dataDir, `${boardId}.jsonl`);
-  }
+export interface upsertUserData {
+  name: string;
+  googleAccountId: string;
 }
 
-export const db = new DB(path.join(process.cwd(), "data"));
+export const upsertUser = async (
+  prisma: PrismaClient,
+  { name, googleAccountId }: upsertUserData
+): Promise<User> => {
+  const { user } = await prisma.googleAccount.upsert({
+    where: { id: googleAccountId },
+    update: {},
+    create: {
+      id: googleAccountId,
+      user: {
+        create: {
+          name,
+        },
+      },
+    },
+    select: { user: { select: selectUser } },
+  });
+
+  return user;
+};
