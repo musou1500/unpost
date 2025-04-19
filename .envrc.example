@@ -1,0 +1,6 @@
+# shellcheck disable=SC2148
+export BASE_URL=http://127.0.0.1:5173
+export UPLOADS_DIR=${PWD}/public/uploads
+export GOOGLE_CLIENT_ID=
+export GOOGLE_CLIENT_SECRET=
+export SECRET="secret"
