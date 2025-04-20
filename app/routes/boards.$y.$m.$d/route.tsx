@@ -113,19 +113,12 @@ function Home_({
         const file = e.dataTransfer.files[0];
         const fd = new FormData();
         fd.append("file", file);
-        uploadFetcher
-          .submit(fd, {
-            method: "post",
-            encType: "multipart/form-data",
-            action: `/api/uploads`,
-          })
-          .catch((e) => {
-            alert("Failed to upload file");
-          })
-          .then(() => {
-            if (!uploadFetcher.data) return;
-            const url: string = uploadFetcher.data.url;
-            console.log(url);
+        fetch(`/api/uploads`, {
+          method: "POST",
+          body: fd,
+        })
+          .then((res) => res.json())
+          .then(({ url }) => {
             dispatch({
               type: "add-block",
               block: {
@@ -140,7 +133,8 @@ function Home_({
                 y: e.clientY,
               },
             });
-          });
+          })
+          .catch(() => alert("Failed to upload file"));
       }}
     >
       <div className="p-index__header">
