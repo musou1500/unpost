@@ -84,7 +84,7 @@ function Home_({
         ) {
           return;
         }
-        const rect = e.currentTarget.getBoundingClientRect();
+        const rect = e.target.getBoundingClientRect();
         dispatch({
           type: "add-block",
           block: {
@@ -99,42 +99,6 @@ function Home_({
             y: e.clientY - rect.top,
           },
         });
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        if (!(e.dataTransfer instanceof DataTransfer)) return;
-        if (e.dataTransfer.files.length < 1) {
-          return;
-        }
-
-        const file = e.dataTransfer.files[0];
-        const fd = new FormData();
-        fd.append("file", file);
-        fetch(`/api/uploads`, {
-          method: "POST",
-          body: fd,
-        })
-          .then((res) => res.json())
-          .then(({ url }) => {
-            dispatch({
-              type: "add-block",
-              block: {
-                id: crypto.randomUUID(),
-                type: "image",
-                url,
-              },
-              width: 100,
-              height: 100,
-              position: {
-                x: e.clientX,
-                y: e.clientY,
-              },
-            });
-          })
-          .catch(() => alert("Failed to upload file"));
       }}
     >
       <div className="p-index__header">
@@ -208,7 +172,46 @@ function Home_({
         </div>
       </div>
       <div className="p-index__board">
-        <div className="p-index__board-inner">
+        <div
+          className="p-index__board-inner"
+          onDragOver={(e) => {
+            e.preventDefault();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (!(e.dataTransfer instanceof DataTransfer)) return;
+            if (e.dataTransfer.files.length < 1) {
+              return;
+            }
+
+            const file = e.dataTransfer.files[0];
+            const fd = new FormData();
+            const rect = e.currentTarget.getBoundingClientRect();
+            fd.append("file", file);
+            fetch(`/api/uploads`, {
+              method: "POST",
+              body: fd,
+            })
+              .then((res) => res.json())
+              .then(({ url }) => {
+                dispatch({
+                  type: "add-block",
+                  block: {
+                    id: crypto.randomUUID(),
+                    type: "image",
+                    url,
+                  },
+                  width: 100,
+                  height: 100,
+                  position: {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                  },
+                });
+              })
+              .catch(() => alert("Failed to upload file"));
+          }}
+        >
           {Array.from(state.blockIds).map((blockId) => {
             const block = state.blocks.get(blockId);
             if (!block) return null;
